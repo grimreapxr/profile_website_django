@@ -3,34 +3,38 @@ from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from .forms import CreateUserForm
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import PasswordChangeView
+from django.urls import reverse_lazy
 
-def registerpage(request):
-    form = CreateUserForm()
+
+def register(request):
     if request.method == 'GET':
-        return render(request,'register.html',{'form': form})
-    
-    elif request.method == 'POST':
+        form = CreateUserForm()
+        return render(request, 'register.html', {'form': form})    
+   
+    if request.method == 'POST':
+        form = CreateUserForm(request.POST) 
         if form.is_valid():
-            form.save()
-            username = form.cleaned_data.get('username')
-            messages.success(request,f'You have signed up {username}')
+            user = form.save(commit=False)
+            user.username = user.username.lower()
+            user.save()
             return redirect('login')
         else:
-            return render(request,'register.html', {'form': form})
+            return render(request, 'register.html', {'form': form})
 
-def loginpage(request):
+def loginPage(request):
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
-        user = authenticate(request, username= username, password = password)
+        user = authenticate(request, username=username, password=password)
 
         if user is not None:
-            login(request,user)
-            return redirect('home')
+            login(request, user)
+            return redirect('home')    
         else:
-            messages.info(request,' Username or password is incorrect')
-        context = {}
-        return render(request, 'login.html', context)
+            messages.info(request, 'Username or password is incorrect')
+    context = {}
+    return render(request, 'login.html', context)
 
 def logoutUser(request):
     logout(request)
@@ -41,3 +45,18 @@ def homePage(request):
     user = request.user
     context = {'user': user}
     return render(request, 'home.html', context)
+
+@login_required
+def profilePage(request):
+    user = request.user
+    context = {
+        'username': user.username,
+        'email': user.email,
+        'date_joined': user.date_joined,
+        'last_login': user.last_login
+    }
+    return render(request,'profile.html',context)
+
+class ChangePasswordPage(PasswordChangeView):
+    template_name = 'change_password.html'
+    success_url = reverse_lazy('home')
